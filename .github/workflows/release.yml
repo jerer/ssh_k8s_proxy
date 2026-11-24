@@ -1,0 +1,63 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+env:
+  CGO_ENABLED: "0"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Test
+        run: |
+          go test ./...
+          go vet ./...
+
+      - name: Build clients
+        env:
+          VERSION: ${{ github.event.release.tag_name }}
+        run: make VERSION="$VERSION" darwin-embedded windows-embedded linux-amd64
+
+      - name: Generate checksums
+        run: |
+          cd bin
+          sha256sum \
+            kubessh-darwin-amd64 \
+            kubessh-darwin-arm64 \
+            kubessh-linux-amd64 \
+            kubessh-windows-amd64.exe \
+            kubessh-windows-arm64.exe \
+            > SHA256SUMS
+
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          gh release upload "$TAG" \
+            bin/kubessh-darwin-amd64 \
+            bin/kubessh-darwin-arm64 \
+            bin/kubessh-linux-amd64 \
+            bin/kubessh-windows-amd64.exe \
+            bin/kubessh-windows-arm64.exe \
+            bin/SHA256SUMS \
+            --clobber

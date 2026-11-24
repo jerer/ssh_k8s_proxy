@@ -1,0 +1,45 @@
+stages:
+  - test
+  - build
+
+variables:
+  CGO_ENABLED: "0"
+  GOCACHE: "$CI_PROJECT_DIR/.cache/go-build"
+  GOMODCACHE: "$CI_PROJECT_DIR/.cache/go-mod"
+
+default:
+  image: golang:1.26-bookworm
+  interruptible: true
+  cache:
+    key: "go-$CI_COMMIT_REF_SLUG"
+    paths:
+      - .cache/go-build
+      - .cache/go-mod
+  before_script:
+    - go version
+    - go mod download
+
+test:
+  stage: test
+  script:
+    - go test ./...
+    - go vet ./...
+
+build:
+  stage: build
+  script:
+    - make VERSION="${CI_COMMIT_TAG:-${CI_COMMIT_SHORT_SHA:-dev}}" darwin-embedded windows-embedded linux-amd64
+    - cd bin
+    - sha256sum kubessh-darwin-amd64 kubessh-darwin-arm64 kubessh-linux-amd64
+      kubessh-windows-amd64.exe kubessh-windows-arm64.exe > SHA256SUMS
+    - ls -lh
+  artifacts:
+    name: "kubessh-$CI_COMMIT_REF_NAME"
+    expire_in: 30 days
+    paths:
+      - bin/kubessh-darwin-amd64
+      - bin/kubessh-darwin-arm64
+      - bin/kubessh-linux-amd64
+      - bin/kubessh-windows-amd64.exe
+      - bin/kubessh-windows-arm64.exe
+      - bin/SHA256SUMS

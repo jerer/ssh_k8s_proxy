@@ -1,0 +1,20 @@
+# Copy the relevant blocks into ~/.ssh/config and adjust paths/names.
+
+# Auto-upload the agent on first use.
+Host mypod
+  HostName mypod
+  User root
+  ProxyCommand kubessh proxy --pod mypod --container app --agent-binary /path/to/kubessh-linux-amd64
+  StrictHostKeyChecking accept-new
+
+# Agent already installed at /tmp/kubessh/kubessh.
+Host mypod-installed
+  HostName mypod
+  User root
+  ProxyCommand kubessh proxy --pod mypod --container app --upload-mode never
+
+# Agent running as a service in the container, reached via port-forward.
+Host mypod-service
+  HostName mypod
+  User root
+  ProxyCommand kubessh proxy --pod mypod --via portforward --port 2222 --upload-mode never
